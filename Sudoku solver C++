@@ -1,0 +1,458 @@
+//Written by Vincent Vanmarsenille
+//Sudoku solver
+
+#include <iostream>
+#include <vector>
+#include <algorithm>
+#include <string>
+#include <fstream>
+#include <list>
+
+class square
+{
+private:
+    int RowCoordinate;     //I didn't use rowcoordinate and columncoordinate (the assignment told me to have it, leaving it out would avoid 2 warnings)
+    int ColumnCoordinate;
+
+
+public:
+    int value;
+    std::vector<int> options;
+
+
+    square(int EnteredRowCoordinate,int EnteredColumnCoordinate)         // constructor
+    {
+        RowCoordinate = EnteredRowCoordinate;
+        ColumnCoordinate = EnteredColumnCoordinate;
+        value = 0;
+        options = {1,2,3,4,5,6,7,8,9};
+    }
+
+    bool check_value() const      // checks if the square has a non-zero value
+    {
+        if (value != 0)
+            return true;
+        else
+            return false;
+    }
+
+     bool check_last_option() const      //Checks if the square has only 1 option
+    {
+        if (options.size() == 1)
+            return true;
+        else
+            return false;
+    }
+
+    std::vector<int> update_options(square& SudokuSquare, const std::vector<square*>& PointerBlockRowColumnVector) const  //updates options for a square
+    {
+        for (const square* SquarePointer : PointerBlockRowColumnVector)  //Deleting values in row,block,column from options
+        {
+            SudokuSquare.options.erase(std::remove(SudokuSquare.options.begin(), SudokuSquare.options.end(), SquarePointer->value),SudokuSquare.options.end());
+        }
+
+        return options;
+    }
+
+
+
+    bool operator == (const square& other) const   //Needed to comparise different instances of square.value with each other (operator would be overloaded)
+    {
+        return (value==other.value);
+    }
+
+};
+
+
+class Sudoku
+{
+public:
+    std::vector<std::vector<square>> SudokuBoard;
+    std::vector<std::vector<square>> OldMatrixSingles;                 //Needed to loop over singles while it's true
+    std::vector<std::vector<square>> OldMatrixHiddenSingles;          //Needed to loop over hiddensingles while it's true
+
+    Sudoku()     // constructor
+    {
+        for (int i = 0; i < 9; i++)
+        {
+            std::vector<square> SudokuRow;
+            for (int j = 0; j < 9; j++)
+            {
+                square element = square(i, j);
+                SudokuRow.push_back(element);
+            }
+            SudokuBoard.push_back(SudokuRow);
+        }
+        OldMatrixSingles = SudokuBoard;
+        OldMatrixHiddenSingles = SudokuBoard;
+    }
+
+    std::vector<square *> GeneratePointerBlockRowColumn(const int &RowCoordinate, const int &ColumnCoordinate)          // Function that contains pointer to all squares of the same block, row and column
+    {
+        std::vector<square *> PointerBlockRowColumnVector{};
+        PointerBlockRowColumnVector.reserve(27);
+
+        for (int index = 0; index < 9; index++)
+        {
+            PointerBlockRowColumnVector.push_back(&SudokuBoard[RowCoordinate][index]);      //adding pointers (the row of sudokuboard)
+        }
+
+        for (int index = 0; index < 9; index++)
+        {
+            PointerBlockRowColumnVector.push_back(&SudokuBoard[index][ColumnCoordinate]);        //adding pointers (the column of sudokuboard)
+        }
+
+        int BlockRow = (RowCoordinate / 3)*3;            //Finding out wich block should be filled in
+        int BlockColumn = (ColumnCoordinate / 3)*3;
+
+        for (int i = 0; i < 3; i++)
+        {
+            for (int j = 0; j < 3; j++)
+            {
+                PointerBlockRowColumnVector.push_back(&SudokuBoard[BlockRow + i][BlockColumn + j]);      //Adding pointers to specific block of sudokuboard
+            }
+        }
+        return PointerBlockRowColumnVector;
+    }
+
+
+    bool check_sudoku_solved()         // Function that checks if the sudoku is solved
+    {
+        for (int i = 0; i < 9; i++)
+        {
+            for (int j = 0; j < 9; j++)
+            {
+                if (!SudokuBoard[i][j].check_value())
+                {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
+ 
+    
+
+    bool update_options_squares()   //Function that updates the options of all the empty squares of the sudoku
+    {
+        bool ReturnValue=false;
+        for (int i=0;i<9;i++)
+        {
+            for (int j = 0; j < 9; j++)
+            {
+                if (SudokuBoard[i][j].value==0)
+                {
+                    SudokuBoard[i][j].update_options(SudokuBoard[i][j], GeneratePointerBlockRowColumn(i, j));
+                    ReturnValue=true;
+                }
+            }
+        }
+        return ReturnValue;  // (I did not need this but did include it because it stood so in the assignment)
+    }
+
+
+    std::vector<std::vector<square>> singles()  //singles algorithm
+    {
+        OldMatrixSingles=SudokuBoard;
+        std::cout<<"Executing singles algorithm..."<<std::endl;
+        
+        for (int i=0;i<9;i++)
+        {
+            for (int j=0;j<9;j++)
+            {
+                if (SudokuBoard[i][j].value == 0)
+                {
+                    if (SudokuBoard[i][j].check_last_option())
+                    {
+                        update_options_squares(); // Updates options when a square gets filled in
+                        SudokuBoard[i][j].value = SudokuBoard[i][j].options[0];  //Fills in value if square has only 1 option
+                    }
+                }
+            }
+        }
+        
+        for (const std::vector<square>& row: SudokuBoard)  //Printing the sudokuboard
+        {
+            for (const square& element: row)
+            {
+                std::cout<<element.value;
+            }
+            std::cout<<std::endl;
+        }
+
+        std::cout<< "singles algorithm executed..."<< std::endl;
+        return SudokuBoard;
+    }
+
+
+    std::vector<std::vector<square>>  hidden_singles()  //hiddensingles algorithm
+    {
+
+        OldMatrixHiddenSingles=SudokuBoard;
+        std::cout<<"Executing hiddensingles algorithm..."<<std::endl;
+        update_options_squares();
+        int x = 0, y = 0, w = 0, z = 0;                      // Needed to loop over every block separately
+        
+        std::list<int> FillInBlock = {1,2,3,4,5,6,7,8,9};
+        std::list<std::list<int>> FillInBlocks;
+        for (int i = 0; i < 9; i++)
+        {
+            FillInBlocks.push_back(FillInBlock);
+        }
+
+        for (std::list<int> block : FillInBlocks)       // block should contain all the values that should still be filled in in a block of the sudoku
+        {
+            for (int i = 0 + z; i < 3 + z; i++)
+            {
+                for (int j = 0 + w; j < 3 + w; j++)
+                {
+                    if (std::find(block.begin(), block.end(), SudokuBoard[i][j].value) != block.end()) // Removing all the values from block that are already in a block
+                    {
+                        block.erase(std::remove(block.begin(), block.end(), SudokuBoard[i][j].value), block.end());
+                    }
+                }
+            }
+
+            if (w < 4)     // Looping over each block separately
+            {
+                w = w + 3;
+                continue;
+            }
+            
+            else if (z < 4)
+            {
+                z = z + 3;
+                w = 0;
+                continue;
+            }
+        }
+        
+        
+        int coordinatex;  // Needed to store the coordinates of the square that will be filled in
+        int coordinatey;
+        for (const std::list<int>& block : FillInBlocks)  // Looping over a block of the sudoku
+        {
+            for (int FillInValue : block)               // A value that still needs to be somewhere inside the block
+            {
+                int FillInCount = 0;                    // counts the amount of empty squares that can be filled in with fillinvalue
+                for (int i = 0 + x; i < 3 + x; i++)     // Looping over all the blocks of the sudoku
+                {
+                    for (int j = 0 + y; j < 3 + y; j++)
+                    {
+                        if (SudokuBoard[i][j].value == 0)
+                        {
+                            if (std::find(SudokuBoard[i][j].options.begin(), SudokuBoard[i][j].options.end(), FillInValue) != SudokuBoard[i][j].options.end())
+                            {
+                                FillInCount = FillInCount + 1;
+                                coordinatex = i;   // stores coordinates of the only square in wich fillinvalue can be filled in
+                                coordinatey = j;
+                            }     // This square will have coordinatex and coordinatey as coordinates
+                        }
+                    }
+                }
+
+                if (FillInCount == 1)
+                {
+                    SudokuBoard[coordinatex][coordinatey].value = FillInValue;
+                    update_options_squares();
+                }
+            }
+
+
+            if (y < 4)        // Looping over every block of the sudoku
+            {
+                y = y + 3;
+                continue;
+            }
+
+            else if (x < 4)
+            {
+                x = x + 3;
+                y = 0;
+                continue;
+            }
+
+        }
+
+        for (std::vector<square>& row : SudokuBoard)     // Printing sudokuboard
+        {
+            for (square& element : row)
+            {
+                std::cout << element.value;
+            }
+            std::cout << std::endl;
+        }
+
+        std::cout<<"Hiddensingles algorithm executed!"<<std::endl;
+        return SudokuBoard;
+    }
+
+
+
+
+
+
+    void solved_sudoku_printer() // Function that writes the solved sudoku to a .txt file
+    {
+        if (check_sudoku_solved())
+        {
+            std::fstream sudoku;
+            sudoku.open("sudokusolved.txt", std::ios::out);
+            if (sudoku.is_open())
+            {
+                std::cout<<"A file called sudoksolved.txt has been created, this file contains the solved sudoku!"<<std::endl;
+                for (const std::vector<square>& row : SudokuBoard)
+                {
+                    for (const square& element : row)
+                    {
+                        sudoku << element.value;
+                    }
+                    sudoku << std::endl;
+                }
+            }
+            sudoku.close();
+        }
+        else
+        {
+            std::fstream sudoku;
+            sudoku.open("sudokusolved.txt", std::ios::out);
+            if (sudoku.is_open())
+            {
+                std::cout<<"Your sudoku could not (or only partially) be solved!"<<std::endl;
+                std::cout<<"A file that contains the failed solution has been created!"<<std::endl;
+                for (const std::vector<square>& row : SudokuBoard)
+                {
+                    for (const square& element : row)
+                    {
+                        sudoku << element.value;
+                    }
+                    sudoku << std::endl;
+                }
+            }
+            sudoku.close();
+        }
+    }
+
+
+     std::vector<std::vector<square>> reading_in_sudoku()  // Function that reads in your sudoku
+     {
+         std::cout<<"Reading in your sudoku..."<<std::endl;
+         std::vector<std::vector<int>> SudokuMatrix;
+         std::string file;
+         file = "sudoku.txt";
+         std::fstream sudoku(file, std::ios::in);   // Opening the file that contains the sudoku
+
+         if (!sudoku)// Checking if the file failed to open
+         {
+            std::cerr << "Failed to open your file!" << std::endl;  // Gives error if the sudoku couldn't be opened
+         }
+
+         if (sudoku.is_open())  // checking if the file is open
+         {
+            std::vector<std::vector<std::string>> SudokuMatrixString;
+            std::string SudokuLine;
+            std::vector<int> SudokuMatrixVector{0,0,0,0,0,0,0,0,0};
+            while (getline(sudoku, SudokuLine))        // Reads in all values for a line and puts them in a string vector
+            {
+                std::vector<std::string> SudokuLines;
+                for (char& value: SudokuLine)
+                {
+                    SudokuLines.push_back(std::string{value});
+                }
+
+                SudokuMatrixString.push_back(SudokuLines);  // Creating a string matrix that contains all lines of values
+                SudokuMatrix.push_back(SudokuMatrixVector);  //SudokuMatrixVector contains 9x9 0's (so I can use the coordinates later on)
+            }
+
+
+            for (int i = 0; i < 9; i++)
+            {
+                for (int j = 0; j < 9; j++)
+                {
+                    if (SudokuMatrixString[i][j] == ".")   // Empty squares are equal to 0
+                    {
+                        SudokuMatrixString[i][j]="0";
+                    }
+
+                    else
+                    {
+                        int IntegerNumber = std::stoi(SudokuMatrixString[i][j]);  //Changing all strings to integers
+                        SudokuMatrix[i][j] = IntegerNumber;
+                    }
+
+                }
+            }
+
+            std::cout << "Your sudoku has been read in!" << std::endl;
+            std::cout<<"your sudoku:"<<std::endl;
+            
+            for (const std::vector<int>& row : SudokuMatrix)            //Printing the sudoku that has been read in
+            {
+                for (const int &element : row) {
+                    std::cout << element;
+                }
+                std::cout << std::endl;
+            }
+
+
+            for (int i = 0; i < 9; i++)
+            {
+                for (int j = 0; j < 9; j++)
+                {
+                    SudokuBoard[i][j].value = SudokuMatrix[i][j];         //Creating sudokuboard (2d vector of type square)
+                }
+            }
+        }
+
+        return SudokuBoard;
+    }
+
+
+    bool check_singles_true(const std::vector<std::vector<square>>& OldMatrixSinglesParameter) const   //Function that checks if singles updates the sudoku (true) else false
+    {
+        return (SudokuBoard!=OldMatrixSinglesParameter);    //sudokuboard gets updated every time, old_matrix is the sudoku before singles gets executed
+    }
+
+    bool check_hidden_singles_true(const std::vector<std::vector<square>>& OldMatrixHiddenSinglesParameter) const   //Function that checks if hiddensingles updates the sudoku (true) or else false
+    {
+        return(SudokuBoard!=OldMatrixHiddenSinglesParameter);   //sudokuboard gets updated every time, old_matrix is the sudoku before hiddensingles gets executed
+    }
+};
+
+
+int main()
+{
+    Sudoku sudoku1=Sudoku();    //Calling the constructor
+    sudoku1.reading_in_sudoku();  //Reading in the sudoku
+    sudoku1.singles();          //Executing both algorithms atleast once
+    sudoku1.hidden_singles();
+
+    while (!sudoku1.check_sudoku_solved())    //As long as the sudoku is not solved
+    {
+
+        if (sudoku1.check_singles_true(sudoku1.OldMatrixSingles))     //Execute singles algorithm if true
+        {
+            sudoku1.singles();
+        }
+        if (!sudoku1.check_sudoku_solved())  // Checking if the sudoku is solved already
+        {
+            if (sudoku1.check_hidden_singles_true(sudoku1.OldMatrixHiddenSingles))    //Execute hiddensingles algortihm if true
+            {
+                sudoku1.hidden_singles();
+            }
+        }
+        
+        if (!sudoku1.check_singles_true(sudoku1.OldMatrixSingles) && !sudoku1.check_hidden_singles_true(sudoku1.OldMatrixHiddenSingles) && !sudoku1.check_sudoku_solved())
+           {
+            sudoku1.solved_sudoku_printer(); // In this case your sudoku could not be solved and a file with the partially solved sudoku will be created
+            break;
+           }
+    }
+
+    if (sudoku1.check_sudoku_solved())              //If the sudoku is solved
+    {
+        sudoku1.solved_sudoku_printer();         // Make .txt file that contains the solved sudoku
+    }
+    return 0;
+}
