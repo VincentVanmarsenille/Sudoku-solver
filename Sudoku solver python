@@ -1,0 +1,211 @@
+import time
+import copy
+start=time.time()  # Starten van de timer
+
+
+
+
+def data_inlezen(filename):               # Sudokubestand openen en inlezen
+    with open(filename,"r") as sudoku:
+            print("Sudoku succesvol geopend!")
+            Sudokumatrix=[]
+            for line in sudoku:                  # Elke lijn toevoegen aan de sudokumatrix en \n verwijderen
+                line=line.strip()
+                line=list(line)
+                Sudokumatrix.append(line)
+                for i in range(9):
+                    if (line[i]=='.'):          # Puntjes omzetten naar de waarde 0
+                        line[i]=0
+            for i in range(9):
+                for j in range(9):
+                    if (Sudokumatrix[i][j]!=0):
+                       Sudokumatrix[i][j]=int(Sudokumatrix[i][j])      # Getallen als string omzetten naar integers
+
+            print("Je Sudoku kon helaas niet worden geopend!")
+    return (Sudokumatrix)
+
+
+
+def genereer_blokrijkolom(Sudokumatrix,rij,kolom):      # Geeft een lijst terug die alle getallen bevat in de blok, rij of kolom van een leeg vakje in de sudoku
+
+    blokrijkolom=[]                    # Bevat alle getallen die voorkomen in de rij, kolom of blok van een leeg vakje
+
+    for element in Sudokumatrix[rij]:    # Voegt alle getallen in de rij van het lege vakje toe aan blokrijkolom
+        blokrijkolom.append(element)
+    for j in range(9):                     # Voegt alle getallen in de kolom van het lege vakje toe aan blokrijkolom
+        blokrijkolom.append(Sudokumatrix[j][kolom])
+
+    BlokRij = (rij//3)*3                    # Voegt alle getallen in het blok van het lege vakje toe aan blokrijkolom en returned blokrijkolom
+    BlokKolom=(kolom//3)*3
+
+    for i in range(3):
+        for j in range(3):
+            blokrijkolom.append(Sudokumatrix[BlokRij+i][BlokKolom+j])
+    return blokrijkolom
+
+
+
+def update_opties(blokrijkolom):
+    opties=[1,2,3,4,5,6,7,8,9]                                    # Bevat alle unieke waarde van blokrijkolom (debugging)
+    for element in blokrijkolom:                    # Opties bevat alle waarden van 1-9 die niet in blokrijkolom voorkomen
+        if (element in opties):
+            opties.remove(element)
+    return opties
+
+
+
+
+def check_laatste_optie(opties):     # Geeft terug of in het lege vakje slechts een optie ingevuld kan worden
+    if (len(opties)!=1):
+        return False
+    else:
+        return True
+
+def check_twee_opties(opties):
+    if (len(opties)!=2):
+        return False
+    else:
+        return True
+
+
+def singles(Sudokumatrix):          # Singles algoritme om de sudoku te updaten
+    print("Singles algoritme uitvoeren...")
+    for i in range(9):
+        for j in range(9):
+            if (Sudokumatrix[i][j]==0):
+                if (check_laatste_optie(update_opties(genereer_blokrijkolom(Sudokumatrix,i,j)))):        # Indien true is er nog maar 1 optie die in het lege vakje kan ingevuld worden
+                    invulwaarde=update_opties(genereer_blokrijkolom(Sudokumatrix,i,j))
+                    Sudokumatrix[i][j]=invulwaarde[0]
+    for row in Sudokumatrix:
+        print(row)
+    print("Singles algoritme uitgevoerd!")
+    return Sudokumatrix
+
+
+
+
+
+def hiddensingles(Sudokumatrix):
+    print("Hiddensingles algoritme uitvoeren...")
+
+    x,y=0,0   # Nodig om de range te verhogen in de loop zodat ik door elke blok apart kan loopen
+    w,z=0,0
+    invulwaardeblok1,invulwaardeblok2,invulwaardeblok3,invulwaardeblok4,invulwaardeblok5,invulwaardeblok6,invulwaardeblok7,invulwaardeblok8,invulwaardeblok9=[1,2,3,4,5,6,7,8,9],[1,2,3,4,5,6,7,8,9],[1,2,3,4,5,6,7,8,9],[1,2,3,4,5,6,7,8,9],[1,2,3,4,5,6,7,8,9],[1,2,3,4,5,6,7,8,9],[1,2,3,4,5,6,7,8,9],[1,2,3,4,5,6,7,8,9],[1,2,3,4,5,6,7,8,9]
+    invulwaardenblokken=[invulwaardeblok1,invulwaardeblok2,invulwaardeblok3,invulwaardeblok4,invulwaardeblok5,invulwaardeblok6,invulwaardeblok7,invulwaardeblok8,invulwaardeblok9]
+    for invulwaardeblok in invulwaardenblokken:  # Blokwaarden bevat alle waarden die al in het blok voorkomen
+        for i in range(0+z,3+z,1):
+            for j in range(0+w,3+w,1):
+                if (Sudokumatrix[i][j] in invulwaardeblok):
+                    invulwaardeblok.remove(Sudokumatrix[i][j])   # invulwaardenblokken bevat nu alle waarde die elk blok nog moet hebben om 1,2,3,4,5,6,7,8,9 te hebben in elk blok
+        if (w<4):
+            w=w+3
+            continue
+        elif (z<4):
+              z=z+3
+              w=0
+              continue
+
+    for invulwaardeblok in invulwaardenblokken:
+        for invulwaarde in invulwaardeblok:
+            invulcount=0                                       # Houdt bij hoeveel empty squares deze waarde nog kunnen invullen in het blok
+            for i in range(0+x,3+x,1):                         # Loopen over alle blokken van de matrix met behulp van x en y om de code efficiënt en kort te houden
+                for j in range(0+y,3+y,1):
+                    if (Sudokumatrix[i][j]==0):
+                        optieslegevakje=update_opties(genereer_blokrijkolom(Sudokumatrix,i,j))
+                        if (invulwaarde in optieslegevakje):
+                           invulcount=invulcount+1
+                           coordinaatx=i                     # Blockcount=1 als het in te vullen getallen slechts in 1 vakje in het blok ingevuld kan worden
+                           coordinaaty=j                     # Dit vakje zal als rij coordinaatx hebben als kolom coordinaaty
+
+            if (invulcount==1):
+              Sudokumatrix[coordinaatx][coordinaaty]=invulwaarde   # Getal invullen in het nog enigste mogelijke vakje
+              invulcount=0
+
+        if (y<4):        #loopen over de blokken
+            y=y+3
+            continue
+        elif (x<4):
+            x=x+3
+            y=0
+            continue
+    for row in Sudokumatrix:
+        print(row)
+    print("Hiddensingles algoritme uitgevoerd!")
+    return Sudokumatrix
+
+
+
+def check_sudoku_opgelost(Sudokumatrix):         # Functie die checkt of de sudoku is opgelost
+    for rij in Sudokumatrix:
+        for element in rij:
+            if (element==0):
+                return False
+    return True
+
+
+
+def schrijf_oplossing_file(Sudokumatrix):       # Schrijft de oplossing uit naar een bestand
+    with open("oplossingsudoku.txt","a") as oplossing:
+        for i in range(9):
+            for j in range(9):
+                 oplossing.write(str(Sudokumatrix[i][j]))
+                 if (j==8):
+                     oplossing.write("\n")
+    return 0
+
+def check_singles_true(Sudokumatrix):   # Geeft True terug als singles de sudoku nog aanpast
+    old_matrix = copy.deepcopy(Sudokumatrix)
+    singles(Sudokumatrix)
+    if (old_matrix==Sudokumatrix):
+        return False
+    else:
+        return True
+
+def check_hiddensingles_true(Sudokumatrix):   #Geeft True terug als hidden_singles de sudoku nog aanpast
+    old_matrix = copy.deepcopy(Sudokumatrix)
+    hiddensingles(Sudokumatrix)
+    if (old_matrix==Sudokumatrix):
+        return False
+    else:
+        return True
+
+
+
+def main():  #Functie die loopt over de algoritmes totdat de algoritmes de Sudokumatrix niet meer updaten
+
+    print("sudoku inlezen...")  # Sudokumatrix inlezen en 1e keer de algoritmes uitvoeren
+    Sudokumatrix = data_inlezen("sudoku.txt")
+    for row in Sudokumatrix:
+        print(row)
+    print("sudoku succesvol ingelezen!")
+    singles(Sudokumatrix)
+    hiddensingles(Sudokumatrix)
+
+    while (check_sudoku_opgelost(Sudokumatrix) == False):
+          if (check_sudoku_opgelost(Sudokumatrix)==False and check_singles_true(Sudokumatrix)==False and check_hiddensingles_true(Sudokumatrix)==False):
+              schrijf_oplossing_file(Sudokumatrix)
+              break
+
+          while (check_singles_true(Sudokumatrix) or check_hiddensingles_true(Sudokumatrix)):   # Loopen over de algoritmes zolang de sudoku onopgelost is
+                singles(Sudokumatrix)
+                hiddensingles(Sudokumatrix)
+
+    if (check_sudoku_opgelost(Sudokumatrix)):     # Bestand laten aanmaken die de oplossing uitschrijft naar een .txt file
+        print("Je sudoku is opgelost!")
+        print("De opgelost sudoku vind je hieronder terug:")
+        print(Sudokumatrix)
+        schrijf_oplossing_file(Sudokumatrix)
+        print("Er werd een bestand (oplossingsudoku.txt) aangemaakt die de opgeloste sudoku bevat!  ")
+        return Sudokumatrix
+    else:                                    # Bestand aanmaken met onopgeloste sudoku indien ze niet kon worden opgelost
+        print("Error: Je sudoku kon jammer genoeg niet worden opgelost!\nDe onopgeloste sudoku wordt hieronder uitgeschreven:")
+        for rij in Sudokumatrix:
+            print(rij)
+        schrijf_oplossing_file(Sudokumatrix)
+        print("Er werd een bestand met de naam oplossingsudoku.txt aangemaakt. Dit bestand bevat de deels opgeloste sudoku.")
+        return Sudokumatrix
+
+main()
+
+einde = time.time()
+print(f'De tijd die nodig was om de sudoku te verwerken: {einde - start}' " seconden.") # Stoppen van de timer
